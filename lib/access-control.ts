@@ -1,3 +1,5 @@
+import { env } from "cloudflare:workers";
+
 const COOKIE_NAME = "lockinola_access";
 const SESSION_SECONDS = 60 * 60 * 24 * 7;
 
@@ -12,15 +14,15 @@ export type AccessStatus = {
 };
 
 export function isHosted() {
-  return process.env.LOCKINOLA_HOSTED === "true";
+  return (env.LOCKINOLA_HOSTED ?? process.env.LOCKINOLA_HOSTED) === "true";
 }
 
 function accessPassword() {
-  return process.env.LOCKINOLA_ACCESS_PASSWORD ?? "";
+  return env.LOCKINOLA_ACCESS_PASSWORD ?? process.env.LOCKINOLA_ACCESS_PASSWORD ?? "";
 }
 
 function accessSecret() {
-  return process.env.LOCKINOLA_ACCESS_SECRET ?? "";
+  return env.LOCKINOLA_ACCESS_SECRET ?? process.env.LOCKINOLA_ACCESS_SECRET ?? "";
 }
 
 function accessConfigured() {
@@ -28,13 +30,13 @@ function accessConfigured() {
 }
 
 function dailyLimit() {
-  const value = Number(process.env.LOCKINOLA_REVIEW_DAILY_LIMIT ?? 20);
+  const value = Number(env.LOCKINOLA_REVIEW_DAILY_LIMIT ?? process.env.LOCKINOLA_REVIEW_DAILY_LIMIT ?? 20);
   return Number.isInteger(value) && value >= 1 && value <= 100 ? value : 20;
 }
 
 function runnerIsLoopback() {
   try {
-    const url = new URL(process.env.LOCKINOLA_RUNNER_URL ?? "http://127.0.0.1:4317/run");
+    const url = new URL(env.LOCKINOLA_RUNNER_URL ?? process.env.LOCKINOLA_RUNNER_URL ?? "http://127.0.0.1:4317/run");
     return ["127.0.0.1", "localhost", "::1"].includes(url.hostname);
   } catch {
     return false;
@@ -87,7 +89,7 @@ export async function getAccessStatus(request: Request): Promise<AccessStatus> {
     authenticated: hosted ? await hasValidSession(request) : true,
     accessConfigured: configured,
     readyForPrivateRelease: hosted && configured && runnerIsLoopback(),
-    reviewConfigured: !hosted || Boolean(process.env.OLLAMA_API_KEY),
+    reviewConfigured: !hosted || Boolean(env.OLLAMA_API_KEY ?? process.env.OLLAMA_API_KEY),
     reviewDailyLimit: dailyLimit(),
     runnerIsLoopback: runnerIsLoopback(),
   };
