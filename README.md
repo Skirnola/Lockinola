@@ -1,5 +1,7 @@
 # Lockinola
 
+![Lockinola dashboard](docs/lockinola-preview.png)
+
 Lockinola is my private study tracker for coding, cloud and DevOps, and Japanese. It keeps lessons, focus sessions, lab notes, code checks, reviews, XP, and schedules in one place.
 
 ## Stack
