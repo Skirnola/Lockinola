@@ -29,7 +29,7 @@ try {
   assert.equal(await requireAccess(allowed), null, "signed session should unlock protected APIs");
   const denied = await requireAccess(new Request("https://study.example/api/python/run"));
   assert.equal(denied?.status, 401, "missing session must be denied in hosted mode");
-  console.log("Stage 10 access verification passed.");
+  console.log("Access verification passed.");
 } finally {
   if (original.hosted === undefined) delete process.env.LOCKINOLA_HOSTED; else process.env.LOCKINOLA_HOSTED = original.hosted;
   if (original.password === undefined) delete process.env.LOCKINOLA_ACCESS_PASSWORD; else process.env.LOCKINOLA_ACCESS_PASSWORD = original.password;

@@ -7,7 +7,7 @@ export const workspaceState = sqliteTable("workspace_state", {
   revision: integer("revision").notNull().default(1),
 });
 
-export const aiUsage = sqliteTable("ai_usage", {
+export const reviewUsage = sqliteTable("review_usage", {
   date: text("date").primaryKey(),
   used: integer("used").notNull().default(0),
 });

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { env } from "cloudflare:workers";
 import { isHosted, requireAccess } from "@/lib/access-control";
-import { generateTutorFeedback, tutorProviderStatus } from "@/lib/ai-provider";
+import { generateReview, reviewProviderStatus } from "@/lib/review-provider";
 
 export const runtime = "nodejs";
 
@@ -26,7 +26,7 @@ function currentDate() {
 }
 
 function dailyLimit() {
-  const configured = Number(process.env.LOCKINOLA_AI_DAILY_LIMIT ?? 20);
+  const configured = Number(process.env.LOCKINOLA_REVIEW_DAILY_LIMIT ?? 20);
   return Number.isInteger(configured) && configured >= 1 && configured <= 100 ? configured : 20;
 }
 
@@ -34,7 +34,7 @@ async function usageSnapshot() {
   const date = currentDate();
   const limit = dailyLimit();
   if (isHosted() && env.DB) {
-    const row = await env.DB.prepare("SELECT used FROM ai_usage WHERE date = ?1").bind(date).first<{ used: number }>();
+    const row = await env.DB.prepare("SELECT used FROM review_usage WHERE date = ?1").bind(date).first<{ used: number }>();
     const used = row?.used ?? 0;
     return { used, limit, remaining: Math.max(0, limit - used) };
   }
@@ -46,8 +46,8 @@ async function reserveUsage() {
   const date = currentDate();
   const limit = dailyLimit();
   if (isHosted() && env.DB) {
-    await env.DB.prepare("INSERT OR IGNORE INTO ai_usage (date, used) VALUES (?1, 0)").bind(date).run();
-    const result = await env.DB.prepare("UPDATE ai_usage SET used = used + 1 WHERE date = ?1 AND used < ?2").bind(date, limit).run();
+    await env.DB.prepare("INSERT OR IGNORE INTO review_usage (date, used) VALUES (?1, 0)").bind(date).run();
+    const result = await env.DB.prepare("UPDATE review_usage SET used = used + 1 WHERE date = ?1 AND used < ?2").bind(date, limit).run();
     return { allowed: (result.meta.changes ?? 0) > 0, ...await usageSnapshot() };
   }
   const before = await usageSnapshot();
@@ -63,7 +63,7 @@ function json(body: Record<string, unknown>, init?: ResponseInit) {
 export async function GET(request: Request) {
   const denied = await requireAccess(request);
   if (denied) return denied;
-  return json({ ...tutorProviderStatus(), ...await usageSnapshot() });
+  return json({ ...reviewProviderStatus(), ...await usageSnapshot() });
 }
 
 export async function POST(request: Request) {
@@ -73,20 +73,20 @@ export async function POST(request: Request) {
 
   let body: unknown;
   try { body = await request.json(); }
-  catch { return json({ code: "invalid_request", error: "The tutor could not read that request.", ...await usageSnapshot() }, { status: 400 }); }
+  catch { return json({ code: "invalid_request", error: "The review service could not read that request.", ...await usageSnapshot() }, { status: 400 }); }
 
   const parsed = requestSchema.safeParse(body);
   if (!parsed.success) return json({ code: "invalid_request", error: "The lesson or answer is incomplete.", ...await usageSnapshot() }, { status: 400 });
   if (parsed.data.mode === "review" && parsed.data.answer.length < 2) return json({ code: "answer_required", error: "Write an answer before asking for a review.", ...await usageSnapshot() }, { status: 400 });
 
-  const provider = tutorProviderStatus();
-  if (!provider.configured) return json({ code: "not_configured", error: `${provider.provider === "ollama" ? "Ollama" : "OpenAI"} is not configured yet.`, ...await usageSnapshot() }, { status: 503 });
+  const provider = reviewProviderStatus();
+  if (!provider.configured) return json({ code: "not_configured", error: "Ollama is not configured yet.", ...await usageSnapshot() }, { status: 503 });
   const reservation = await reserveUsage();
-  if (!reservation.allowed) return json({ code: "daily_limit", error: "Today’s AI tutor limit has been reached.", ...reservation }, { status: 429 });
+  if (!reservation.allowed) return json({ code: "daily_limit", error: "Today’s review limit has been reached.", ...reservation }, { status: 429 });
 
   const lesson = parsed.data.lesson;
   const instructions = [
-    "You are Lockinola's calm, beginner-friendly learning tutor.",
+    "You are Lockinola's code and learning reviewer.",
     "Use only the supplied lesson context and learner work. Keep the response under 180 words.",
     "For HINT mode: do not give the finished solution. Explain one useful idea, give 2-4 small clues, and end with one concrete next action.",
     "For REVIEW mode: start with exactly one verdict line: 'Verdict: Correct', 'Verdict: Partly correct', or 'Verdict: Needs work'. Then explain one strength, the most important issue, and one next action.",
@@ -107,17 +107,17 @@ export async function POST(request: Request) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 60_000);
   try {
-    const feedback = await generateTutorFeedback(instructions, input, controller.signal);
+    const feedback = await generateReview(instructions, input, controller.signal);
     return json({ feedback, mode: parsed.data.mode, provider: provider.provider, model: provider.model, ...await usageSnapshot() });
   } catch (error) {
     const code = error instanceof Error ? error.message : "provider_error";
     const message = code === "not_configured" || code === "configuration_error"
-      ? "The server could not authenticate the AI tutor. Check its provider key."
-      : code === "provider_limit" ? "The AI provider is busy or its usage limit was reached. Try again later."
-        : code === "refused" ? "The tutor can’t help with that request. Keep your answer focused on this lesson and try again."
-          : code === "empty_response" ? "The tutor returned no readable feedback. Try rewording your work."
-            : error instanceof Error && error.name === "AbortError" ? "The tutor took too long to respond. Try again."
-              : "The AI tutor could not connect. Check the provider and try again.";
+      ? "The server could not authenticate the review endpoint. Check its provider key."
+      : code === "provider_limit" ? "The model endpoint is busy or its usage limit was reached. Try again later."
+        : code === "refused" ? "The review request was refused. Keep your submission focused on this lesson and try again."
+          : code === "empty_response" ? "The review endpoint returned no readable output. Try rewording your work."
+            : error instanceof Error && error.name === "AbortError" ? "The review took too long to respond. Try again."
+              : "The review endpoint could not connect. Check the provider and try again.";
     return json({ code, error: message, ...await usageSnapshot() }, { status: code === "provider_limit" ? 429 : code === "refused" ? 422 : 502 });
   } finally {
     clearTimeout(timeout);

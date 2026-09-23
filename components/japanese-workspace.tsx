@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, Check, Clock3, Headphones, Keyboard, RotateCcw, Sparkles, Volume2, X } from "lucide-react";
+import { BookOpen, Check, Clock3, Headphones, Keyboard, Languages, RotateCcw, Volume2, X } from "lucide-react";
 import { createRecordId, type JapaneseAttempt, type JapaneseReview } from "@/lib/learning-data";
 
 type Card = {
@@ -128,7 +128,7 @@ export function JapaneseWorkspace({ attempts, reviews, onRecord }: {
   const promptLabel = card.group === "Vocabulary" ? "What does this word mean?" : "Type this sound in romaji";
   return <section className="japanese-lab" aria-labelledby="japanese-lab-title">
     <header className="jp-lab-heading">
-      <div><span className="eyebrow"><Sparkles size={14} /> STAGE 7 · DAILY JAPANESE</span><h2 id="japanese-lab-title">See it. Hear it. Recall it.</h2><p>Begin with the vowel kana, then mix in a small set of useful words.</p></div>
+      <div><span className="eyebrow"><Languages size={14} /> JAPANESE DRILL</span><h2 id="japanese-lab-title">See it. Hear it. Recall it.</h2><p>Begin with the vowel kana, then mix in a small set of useful words.</p></div>
       <div className="jp-today-count"><strong>{todayAttempts.length}</strong><span>attempts today<br />{todayAttempts.length ? `${Math.round(correctToday / todayAttempts.length * 100)}% correct` : "start gently"}</span></div>
     </header>
 

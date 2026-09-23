@@ -1,6 +1,6 @@
 # Deploying Lockinola
 
-Lockinola uses Cloudflare Workers for the application, D1 for synchronized progress, the existing private password for access, and Ollama for the tutor. Local development uses `qwen3.8:27b`; production calls Ollama Cloud.
+Lockinola uses Cloudflare Workers for the application, D1 for synchronized progress, the existing private password for access, and Ollama for lesson reviews. Local development uses `qwen3.8:27b`; production calls Ollama Cloud.
 
 ## 1. Prepare local Ollama
 
@@ -10,7 +10,7 @@ Install Ollama, then download the local model:
 ollama pull qwen3.8:27b
 ```
 
-Copy `.env.example` to `.env.local`. Keep `LOCKINOLA_HOSTED=false` locally. The tutor automatically calls `http://127.0.0.1:11434/api` and does not need an API key.
+Copy `.env.example` to `.env.local`. Keep `LOCKINOLA_HOSTED=false` locally. The review console calls `http://127.0.0.1:11434/api` and does not need an API key.
 
 ## 2. Create the Cloudflare resources
 

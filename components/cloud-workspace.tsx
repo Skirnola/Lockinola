@@ -86,7 +86,7 @@ export function CloudWorkspace({ records, toolChecks, onSaveRecord, onSaveChecks
   }
 
   return <section className="cloud-lab" aria-labelledby="cloud-lab-title">
-    <header className="cloud-lab-heading"><div><span className="eyebrow"><Cloud size={15} /> STAGE 8 · LOCAL CLOUD LABS</span><h2 id="cloud-lab-title">Prove the foundation first.</h2><p>Practise locally, save evidence, and understand cleanup before touching a billable provider.</p></div><div className="cloud-stage-count"><strong>{completedCount}/6</strong><span>lab records<br />saved locally</span></div></header>
+    <header className="cloud-lab-heading"><div><span className="eyebrow"><Cloud size={15} /> INFRASTRUCTURE LABS</span><h2 id="cloud-lab-title">Prove the foundation first.</h2><p>Practise locally, save evidence, and understand cleanup before touching a billable provider.</p></div><div className="cloud-stage-count"><strong>{completedCount}/6</strong><span>lab records<br />saved locally</span></div></header>
 
     <div className="cloud-lab-shell">
       <aside className="cloud-lab-rail" aria-label="Cloud and DevOps labs"><span className="rail-label">GUIDED LABS</span>{labs.map(item => { const state = recordMap.get(item.id)?.status; return <button key={item.id} className={item.id === lab.id ? "active" : ""} onClick={() => chooseLab(item.id)}><span className={`cloud-status-dot ${state ?? "not_started"}`}>{state === "locally_verified" || state === "evidence_submitted" ? <Check size={12} /> : state === "in_progress" ? <Play size={11} /> : <Circle size={10} />}</span><div><small>{item.step}</small><strong>{item.title}</strong></div><ChevronRight size={15} /></button>; })}</aside>

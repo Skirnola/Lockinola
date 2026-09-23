@@ -6,8 +6,8 @@ export type AccessStatus = {
   authenticated: boolean;
   accessConfigured: boolean;
   readyForPrivateRelease: boolean;
-  aiConfigured: boolean;
-  aiDailyLimit: number;
+  reviewConfigured: boolean;
+  reviewDailyLimit: number;
   runnerIsLoopback: boolean;
 };
 
@@ -28,7 +28,7 @@ function accessConfigured() {
 }
 
 function dailyLimit() {
-  const value = Number(process.env.LOCKINOLA_AI_DAILY_LIMIT ?? 20);
+  const value = Number(process.env.LOCKINOLA_REVIEW_DAILY_LIMIT ?? 20);
   return Number.isInteger(value) && value >= 1 && value <= 100 ? value : 20;
 }
 
@@ -87,10 +87,8 @@ export async function getAccessStatus(request: Request): Promise<AccessStatus> {
     authenticated: hosted ? await hasValidSession(request) : true,
     accessConfigured: configured,
     readyForPrivateRelease: hosted && configured && runnerIsLoopback(),
-    aiConfigured: process.env.LOCKINOLA_AI_PROVIDER === "openai"
-      ? Boolean(process.env.OPENAI_API_KEY)
-      : !hosted || Boolean(process.env.OLLAMA_API_KEY),
-    aiDailyLimit: dailyLimit(),
+    reviewConfigured: !hosted || Boolean(process.env.OLLAMA_API_KEY),
+    reviewDailyLimit: dailyLimit(),
     runnerIsLoopback: runnerIsLoopback(),
   };
 }

@@ -30,7 +30,7 @@ assert.equal(snapshot.totalXp, 125);
 assert.equal(snapshot.topics.find(topic => topic.key === "jp:a")?.state, "remembered");
 
 const migrated = parseLearningData({ ...sample, version: 5 });
-assert.equal(migrated.version, 6, "Stage 8 data should migrate to Stage 9 storage without loss");
+assert.equal(migrated.version, 6, "Earlier progress data should migrate without loss");
 assert.equal(migrated.attempts.length, 2);
 
-console.log("Stage 9 progress verification passed.");
+console.log("Progress verification passed.");
