@@ -42,7 +42,7 @@ jobs:
           CLOUDFLARE_D1_DATABASE_NAME: lockinola
           CLOUDFLARE_WORKER_NAME: lockinola
           OLLAMA_CLOUD_MODEL: gemma4
-          LOCKINOLA_AI_DAILY_LIMIT: "20"
+          LOCKINOLA_REVIEW_DAILY_LIMIT: "20"
 
       - name: Apply database migrations
         run: npx wrangler d1 migrations apply DB --remote --config dist/server/wrangler.json

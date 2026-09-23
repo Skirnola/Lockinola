@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import Image from "next/image";
 import { ArrowRight, BookOpen, Check, ChevronRight, Clock3, Cloud, Code2, Download, ExternalLink, Flag, HardDrive, LayoutGrid, Pause, Play, RotateCcw, Settings, Target, Timer, CalendarDays, Upload, X } from "lucide-react";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { LearningPath, ScheduleView, ProgressView, type Lesson } from "@/components/learning-views";
@@ -27,7 +28,7 @@ function Navigation({ view, navigate, data, openSettings }: { view: View; naviga
   const { setOpenMobile } = useSidebar();
   const initials = data.profile.displayName.split(/\s+/).map(part => part[0]).join("").slice(0, 2).toUpperCase();
   const target = new Date(`${data.profile.graduationTarget}-02T00:00:00`).toLocaleDateString("en-US", { month: "short", year: "numeric" }).toUpperCase();
-  return <Sidebar className="study-sidebar" collapsible="icon"><SidebarHeader className="brand-area"><div className="brand-row"><a className="brand" href="#today" onClick={() => navigate("Today")}><img className="brand-mark" src="/lockinola-mark.svg" alt="" width="32" height="32" /><span className="brand-name">lockinola</span></a><SidebarTrigger className="sidebar-nav-toggle" /></div></SidebarHeader><SidebarContent><div className="nav-label">WORKSPACE</div><SidebarMenu>{navigation.map(({ name, icon: Icon }, index) => <SidebarMenuItem key={name} className={index === 4 ? "nav-divider" : ""}><SidebarMenuButton tooltip={name} isActive={view === name} onClick={() => { navigate(name); setOpenMobile(false); }} className="nav-link"><Icon size={18} /><span>{name}</span>{name === "Japanese" && view !== name && <span className="daily-dot" />}{view === name && <span className="active-dot" />}</SidebarMenuButton></SidebarMenuItem>)}</SidebarMenu><div className="chapter-card"><span className="eyebrow"><Flag size={14} /> TARGET</span><strong>{target}</strong><p>Graduate with a strong technical foundation and usable Japanese.</p><div className="chapter-line"><span /></div><span className="subtle">Private workspace</span></div></SidebarContent><SidebarFooter><button className="profile profile-button" onClick={openSettings}><span className="avatar">{initials || "IQ"}</span><div><strong>{data.profile.displayName}</strong><span>Profile & backup</span></div><Settings size={15} /><span className="profile-dot" /></button></SidebarFooter></Sidebar>;
+  return <Sidebar className="study-sidebar" collapsible="icon"><SidebarHeader className="brand-area"><div className="brand-row"><a className="brand" href="#today" onClick={() => navigate("Today")}><Image className="brand-mark" src="/lockinola-mark.svg" alt="" width={32} height={32} priority /><span className="brand-name">lockinola</span></a><SidebarTrigger className="sidebar-nav-toggle" /></div></SidebarHeader><SidebarContent><div className="nav-label">WORKSPACE</div><SidebarMenu>{navigation.map(({ name, icon: Icon }, index) => <SidebarMenuItem key={name} className={index === 4 ? "nav-divider" : ""}><SidebarMenuButton tooltip={name} isActive={view === name} onClick={() => { navigate(name); setOpenMobile(false); }} className="nav-link"><Icon size={18} /><span>{name}</span>{name === "Japanese" && view !== name && <span className="daily-dot" />}{view === name && <span className="active-dot" />}</SidebarMenuButton></SidebarMenuItem>)}</SidebarMenu><div className="chapter-card"><span className="eyebrow"><Flag size={14} /> TARGET</span><strong>{target}</strong><p>Graduate with a strong technical foundation and usable Japanese.</p><div className="chapter-line"><span /></div><span className="subtle">Private workspace</span></div></SidebarContent><SidebarFooter><button className="profile profile-button" onClick={openSettings}><span className="avatar">{initials || "IQ"}</span><div><strong>{data.profile.displayName}</strong><span>Profile & backup</span></div><Settings size={15} /><span className="profile-dot" /></button></SidebarFooter></Sidebar>;
 }
 
 export default function Home() {
@@ -50,7 +51,6 @@ export default function Home() {
   const cloudReady = useRef(false);
   useEffect(() => {
     let cancelled = false;
-    setAccessChecked(false);
     fetch("/api/access", { cache: "no-store" }).then(async response => {
       if (!response.ok) throw new Error("Access status unavailable");
       return response.json() as Promise<ClientAccessStatus>;
@@ -60,42 +60,50 @@ export default function Home() {
     return () => { cancelled = true; };
   }, [accessNonce]);
   useEffect(() => {
-    try {
-      let loaded = loadLearningData();
-      const active = loaded.activeTimer;
-      if (active) {
-        setDuration(String(active.durationMinutes));
-        if (active.isRunning && active.endsAt) {
-          const end = new Date(active.endsAt).getTime();
-          const remaining = Math.max(0, Math.ceil((end - Date.now()) / 1000));
-          if (remaining > 0) {
-            timerEndsAt.current = end;
-            setSeconds(remaining);
-            setRunning(true);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      try {
+        let loaded = loadLearningData();
+        const active = loaded.activeTimer;
+        if (active) {
+          setDuration(String(active.durationMinutes));
+          if (active.isRunning && active.endsAt) {
+            const end = new Date(active.endsAt).getTime();
+            const remaining = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+            if (remaining > 0) {
+              timerEndsAt.current = end;
+              setSeconds(remaining);
+              setRunning(true);
+            } else {
+              loaded = { ...loaded, activeTimer: null, focusSessions: [...loaded.focusSessions, { id: createRecordId("focus"), durationMinutes: active.durationMinutes, completedAt: active.endsAt }] };
+              setSeconds(active.durationMinutes * 60);
+              setNotice("Your focus session finished while the page was closed and has been saved.");
+            }
           } else {
-            loaded = { ...loaded, activeTimer: null, focusSessions: [...loaded.focusSessions, { id: createRecordId("focus"), durationMinutes: active.durationMinutes, completedAt: active.endsAt }] };
-            setSeconds(active.durationMinutes * 60);
-            setNotice("Your focus session finished while the page was closed and has been saved.");
+            setSeconds(active.remainingSeconds);
           }
         } else {
-          setSeconds(active.remainingSeconds);
+          setDuration(String(loaded.profile.technicalSessionMinutes));
+          setSeconds(loaded.profile.technicalSessionMinutes * 60);
         }
-      } else {
-        setDuration(String(loaded.profile.technicalSessionMinutes));
-        setSeconds(loaded.profile.technicalSessionMinutes * 60);
+        setData(loaded);
       }
-      setData(loaded);
-    }
-    catch { setNotice("The saved data could not be read, so Lockinola opened with safe defaults."); }
-    setHydrated(true);
+      catch { setNotice("The saved data could not be read, so Lockinola opened with safe defaults."); }
+      setHydrated(true);
+    });
+    return () => { cancelled = true; };
   }, []);
   useEffect(() => {
-    setTodayLabel(new Intl.DateTimeFormat("en-US", { timeZone: data.profile.timezone, weekday: "long", day: "numeric", month: "long" }).format(new Date()).toUpperCase());
+    const timeout = window.setTimeout(() => setTodayLabel(new Intl.DateTimeFormat("en-US", { timeZone: data.profile.timezone, weekday: "long", day: "numeric", month: "long" }).format(new Date()).toUpperCase()), 0);
+    return () => window.clearTimeout(timeout);
   }, [data.profile.timezone]);
   useEffect(() => {
     if (!hydrated) return;
+    let timeout: number | undefined;
     try { saveLearningData(data); }
-    catch { setNotice("Lockinola could not save changes in this browser."); }
+    catch { timeout = window.setTimeout(() => setNotice("Lockinola could not save changes in this browser."), 0); }
+    return () => { if (timeout !== undefined) window.clearTimeout(timeout); };
   }, [data, hydrated]);
   useEffect(() => {
     if (!hydrated || accessStatus?.mode !== "hosted" || !accessStatus.authenticated || cloudReady.current) return;
@@ -110,7 +118,7 @@ export default function Home() {
       })
       .catch(() => { if (!controller.signal.aborted) setSyncState("offline"); });
     return () => controller.abort();
-  }, [accessStatus?.authenticated, accessStatus?.mode, hydrated]);
+  }, [accessStatus?.authenticated, accessStatus?.mode, data, hydrated]);
   useEffect(() => {
     if (!hydrated || accessStatus?.mode !== "hosted" || !accessStatus.authenticated || !cloudReady.current) return;
     setSyncState("syncing");
@@ -232,15 +240,20 @@ export default function Home() {
   async function lockWorkspace() {
     await fetch("/api/access", { method: "DELETE" });
     setSettingsOpen(false);
+    setAccessChecked(false);
+    setAccessNonce(value => value + 1);
+  }
+  function refreshAccess() {
+    setAccessChecked(false);
     setAccessNonce(value => value + 1);
   }
   if (!accessChecked || !accessStatus?.authenticated) {
-    return <AccessGate status={accessStatus} checking={!accessChecked} onAuthenticated={() => setAccessNonce(value => value + 1)} onRetry={() => setAccessNonce(value => value + 1)} />;
+    return <AccessGate status={accessStatus} checking={!accessChecked} onAuthenticated={refreshAccess} onRetry={refreshAccess} />;
   }
   const syncLabel = syncState === "saved" ? "SAVED TO CLOUD" : syncState === "syncing" ? "SYNCING" : syncState === "offline" ? "CLOUD OFFLINE" : "SAVED LOCALLY";
   const timer = <section className="focus-card"><div className="section-kicker"><span><Timer size={16} /> FOCUS TIMER</span><span className={running ? "live-indicator running" : "live-indicator"}>{running ? "Running" : data.activeTimer ? "Paused · saved" : "Ready"}</span></div><div className="timer-readout" role="timer" aria-label={`${Math.floor(seconds / 60)} minutes ${seconds % 60} seconds remaining`}>{String(Math.floor(seconds / 60)).padStart(2, "0")}<span>:</span>{String(seconds % 60).padStart(2, "0")}</div><p className="timer-caption">Stay with one task until the timer ends.</p><Tabs value={duration} onValueChange={chooseDuration}><TabsList className="duration-tabs">{["25", "50", "90"].map(v => <TabsTrigger key={v} value={v}>{v} min</TabsTrigger>)}</TabsList></Tabs><div className="timer-actions"><button className="primary-btn timer-start" onClick={toggleTimer}>{running ? <Pause size={15} /> : <Play size={15} fill="currentColor" />}{running ? "Pause" : seconds < Number(duration) * 60 && seconds > 0 ? "Resume" : "Start session"}</button><button className="icon-btn" aria-label="Reset focus timer" onClick={resetTimer}><RotateCcw size={17} /></button></div><span className="timer-note">Active timer recovers after reload</span></section>;
   return <SidebarProvider style={{ "--sidebar-width": "216px", "--sidebar-width-icon": "64px" } as CSSProperties}><Navigation view={view} navigate={navigate} data={data} openSettings={() => setSettingsOpen(true)} /><main className="workspace"><header className="topbar"><div className="breadcrumb"><SidebarTrigger className="mobile-trigger" /><span>Lockinola</span><ChevronRight size={14} /><strong>{view}</strong></div><span className="prototype-badge"><span /> {syncLabel}</span></header><div className="page-content" key={view}><div className="page-heading"><div><span className="eyebrow">{view === "Today" ? todayLabel : "LEARNING WORKSPACE"}</span><h1>{view === "Today" ? <>Today&apos;s <em>plan</em></> : view}</h1><p>{view === "Today" ? `Two focused tasks for ${data.profile.displayName}. Start with Python, then complete your daily Japanese.` : "Follow the first-month route, open the reviewed source, and complete the assignment."}</p></div><div className="day-marker"><span>{String(markerLevel).padStart(2, "0")}</span><div>{activeTrack ? "TRACK LEVEL" : "AVERAGE LEVEL"}<br /><strong>{activeTrack ? `${progressSnapshot.tracks[activeTrack].xp} XP` : `${progressSnapshot.totalXp} total XP`}</strong></div></div></div>
-  {view === "Today" ? <><div className="today-grid"><div className="today-main"><section className="next-lesson"><div className="section-kicker"><span><span className="tiny-square" /> UP NEXT</span><span className="lesson-number">PYTHON · 01</span></div><div className="next-lesson-body"><div><span className="small-pill">BEGINNER</span><h2>Variables and<br />expressions</h2><p>Learn how Python stores values, then predict the output of a short program.</p></div><div className="code-note" aria-label="Python sample"><span className="code-file"><Code2 size={13} /> first_steps.py</span><code><span className="code-comment"># a value needs a name</span><br /><span className="code-lime">name</span> = <span className="code-string">"Iqbal"</span><br /><span className="code-lime">day</span> = <span className="code-number">1</span><br /><br /><span className="code-purple">print</span>(<span className="code-string">"Let&apos;s begin."</span>)</code><span className="code-output"><ChevronRight size={13} /> Let&apos;s begin.<span className="cursor-block" /></span></div></div><div className="lesson-footer"><button className="primary-btn" onClick={() => openTrack("Coding")}>Open lesson <ArrowRight size={17} /></button><span><Clock3 size={14} /> 25 min <i /> Learn + practice</span></div></section><section className="japanese-daily"><div className="kana-stamp" lang="ja">あ</div><div><span className="eyebrow lavender">DAILY JAPANESE</span><h3>Hiragana vowels</h3><p>Learn and recognise あ · い · う · え · お</p></div><button className="round-arrow" aria-label="Open daily Japanese lesson" onClick={() => openTrack("Japanese")}><ArrowRight size={19} /></button></section></div>{timer}</div>
+  {view === "Today" ? <><div className="today-grid"><div className="today-main"><section className="next-lesson"><div className="section-kicker"><span><span className="tiny-square" /> UP NEXT</span><span className="lesson-number">PYTHON · 01</span></div><div className="next-lesson-body"><div><span className="small-pill">BEGINNER</span><h2>Variables and<br />expressions</h2><p>Learn how Python stores values, then predict the output of a short program.</p></div><div className="code-note" aria-label="Python sample"><span className="code-file"><Code2 size={13} /> first_steps.py</span><code><span className="code-comment"># a value needs a name</span><br /><span className="code-lime">name</span> = <span className="code-string">&quot;Iqbal&quot;</span><br /><span className="code-lime">day</span> = <span className="code-number">1</span><br /><br /><span className="code-purple">print</span>(<span className="code-string">&quot;Let&apos;s begin.&quot;</span>)</code><span className="code-output"><ChevronRight size={13} /> Let&apos;s begin.<span className="cursor-block" /></span></div></div><div className="lesson-footer"><button className="primary-btn" onClick={() => openTrack("Coding")}>Open lesson <ArrowRight size={17} /></button><span><Clock3 size={14} /> 25 min <i /> Learn + practice</span></div></section><section className="japanese-daily"><div className="kana-stamp" lang="ja">あ</div><div><span className="eyebrow lavender">DAILY JAPANESE</span><h3>Hiragana vowels</h3><p>Learn and recognise あ · い · う · え · お</p></div><button className="round-arrow" aria-label="Open daily Japanese lesson" onClick={() => openTrack("Japanese")}><ArrowRight size={19} /></button></section></div>{timer}</div>
   <section className="track-section"><div className="section-heading"><h2>Learning tracks</h2><span className="subtle">{progressSnapshot.totalXp} XP earned</span></div><div className="track-grid">{tracks.map(track => { const progress = progressSnapshot.tracks[track.name]; return <button key={track.name} className={`track-card ${track.color}`} onClick={() => navigate(track.name)}><div className="track-top"><span className="track-icon"><track.icon size={19} /></span><span className="level-badge">LEVEL {String(progress.level).padStart(2, "0")}</span><ArrowRight size={16} /></div><h3>{track.name}</h3><p>{track.title}</p><div className="track-progress-label"><span>{progress.xp} XP · {track.topic}</span><span>{progress.percentToNext}%</span></div><Progress value={progress.percentToNext} aria-label={`${track.name} level ${progress.level}, ${progress.percentToNext} percent to next level`} /><div className="track-bottom"><span>{progress.levelEnd - progress.xp} XP to level {progress.level + 1}</span><ArrowRight size={15} /></div></button>; })}</div></section>
   <section className="rhythm-section"><div className="section-heading"><h2>Later today</h2><button className="text-btn" onClick={() => navigate("Schedule")}>Full schedule <ArrowRight size={15} /></button></div><div className="rhythm-strip"><div className="rhythm-cell"><span>10:00 <i>—</i> 10:25</span><strong><span className="color-dot green" /> Python variables</strong><small>Learn + practice</small></div><div className="rhythm-cell"><span>14:00 <i>—</i> 14:20</span><strong><span className="color-dot purple" /> Hiragana vowels</strong><small>Video + recall</small></div><div className="rhythm-cell flexible"><CalendarDays size={19} /><div><strong>Gym and campus stay flexible</strong><small>Move study blocks when the day changes.</small></div></div></div></section></> : view === "Schedule" ? <ScheduleView sessions={data.plannedSessions} onSave={savePlannedSession} onDelete={deletePlannedSession} /> : view === "Progress" ? <ProgressView completed={completed} attemptCount={data.attempts.length} focusMinutes={focusMinutes} snapshot={progressSnapshot} /> : view === "Coding" ? <><CodingWorkspace runs={data.codeRuns} onRecord={recordCodeRun} /><LearningPath name="Coding" openLesson={setLesson} completed={completed} progress={progressSnapshot.tracks.Coding} /></> : view === "Cloud & DevOps" ? <><CloudWorkspace records={data.cloudLabs} toolChecks={data.cloudToolChecks} onSaveRecord={saveCloudLab} onSaveChecks={saveCloudChecks} /><LearningPath name="Cloud & DevOps" openLesson={setLesson} completed={completed} progress={progressSnapshot.tracks["Cloud & DevOps"]} /></> : view === "Japanese" ? <><JapaneseWorkspace attempts={data.japaneseAttempts} reviews={data.japaneseReviews} onRecord={recordJapaneseAttempt} /><LearningPath name="Japanese" openLesson={setLesson} completed={completed} progress={progressSnapshot.tracks.Japanese} /></> : null}
   <footer className="page-footer"><span>LOCKINOLA · PRIVATE WORKSPACE</span><span><HardDrive size={12} /> {syncState === "saved" ? "Progress synced across devices" : "Browser copy available"}</span></footer></div></main>

@@ -58,22 +58,29 @@ export function JapaneseWorkspace({ attempts, reviews, onRecord }: {
   const [answer, setAnswer] = useState("");
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [audioReady, setAudioReady] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
   const reviewMap = useMemo(() => new Map(reviews.map(item => [item.cardId, item])), [reviews]);
   const eligible = useMemo(() => cards.filter(card => mode === "Daily queue" || mode === "Kana" ? mode !== "Kana" || card.group !== "Vocabulary" : card.group === "Vocabulary"), [mode]);
-  const now = Date.now();
   const dueCards = eligible.filter(card => {
     const review = reviewMap.get(card.id);
-    return !review || new Date(review.dueAt).getTime() <= now;
+    return !review || new Date(review.dueAt).getTime() <= currentTime;
   });
   const card = cards.find(item => item.id === cardId && eligible.some(candidate => candidate.id === item.id)) ?? dueCards[0] ?? eligible[0];
-  const today = new Date().toDateString();
+  const queueStartId = (dueCards[0] ?? eligible[0])?.id;
+  const today = currentTime ? new Date(currentTime).toDateString() : "";
   const todayAttempts = attempts.filter(item => new Date(item.createdAt).toDateString() === today);
   const correctToday = todayAttempts.filter(item => item.correct).length;
 
   useEffect(() => {
-    setAudioReady(typeof window !== "undefined" && "speechSynthesis" in window && "SpeechSynthesisUtterance" in window);
+    const update = () => {
+      setCurrentTime(Date.now());
+      setAudioReady("speechSynthesis" in window && "SpeechSynthesisUtterance" in window);
+    };
+    const start = window.setTimeout(update, 0);
+    const interval = window.setInterval(update, 60_000);
+    return () => { window.clearTimeout(start); window.clearInterval(interval); };
   }, []);
 
   useEffect(() => {
@@ -81,14 +88,14 @@ export function JapaneseWorkspace({ attempts, reviews, onRecord }: {
   }, [feedback]);
 
   useEffect(() => {
-    const next = dueCards[0] ?? eligible[0];
-    if (next) setCardId(next.id);
-    setAnswer("");
-    setFeedback(null);
-    window.setTimeout(() => inputRef.current?.focus(), 0);
-    // The queue is recalculated after each mode change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode]);
+    const timeout = window.setTimeout(() => {
+      if (queueStartId) setCardId(queueStartId);
+      setAnswer("");
+      setFeedback(null);
+      inputRef.current?.focus();
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [mode, queueStartId]);
 
   function speak() {
     if (!audioReady || !card) return;
@@ -149,7 +156,7 @@ export function JapaneseWorkspace({ attempts, reviews, onRecord }: {
         <span className="eyebrow"><Keyboard size={14} /> RECALL CHECK</span>
         <h3>{promptLabel}</h3>
         <p className="jp-hint">Hint: {card.hint}</p>
-        <label><span>Your answer</span><input ref={inputRef} value={answer} disabled={!!feedback} autoComplete="off" spellCheck={false} placeholder={card.group === "Vocabulary" ? "English or Indonesian" : "romaji"} onChange={event => setAnswer(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); feedback ? continuePractice() : submit(); } }} /></label>
+        <label><span>Your answer</span><input ref={inputRef} value={answer} disabled={!!feedback} autoComplete="off" spellCheck={false} placeholder={card.group === "Vocabulary" ? "English or Indonesian" : "romaji"} onChange={event => setAnswer(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); if (feedback) continuePractice(); else submit(); } }} /></label>
         {!feedback ? <button className="primary-btn jp-check" disabled={!answer.trim()} onClick={submit}>Check answer <Check size={16} /></button> : <div className={`jp-feedback ${feedback.correct ? "correct" : "incorrect"}`} aria-live="polite"><div className="jp-feedback-title"><span>{feedback.correct ? <Check size={17} /> : <X size={17} />}</span><div><small>{feedback.correct ? "CORRECT" : "TRY IT AGAIN LATER"}</small><strong>{feedback.correct ? `${card.prompt} is ${card.reading}.` : `The answer is ${card.group === "Vocabulary" ? `${card.meaning} (${card.reading})` : card.reading}.`}</strong></div></div><p>You entered “{feedback.submitted}”. Accepted: {card.accepted.join(" / ")}.</p><div className="jp-feedback-actions"><button className="text-btn" onClick={() => { setAnswer(""); setFeedback(null); inputRef.current?.focus(); }}><RotateCcw size={14} /> Retry this card</button><button ref={nextRef} className="primary-btn" onClick={continuePractice}>Next card</button></div></div>}
         <span className="jp-key-note">Press Enter to check or continue.</span>
       </section>
