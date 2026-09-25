@@ -42,7 +42,18 @@
 .review-actions button:disabled{cursor:not-allowed;filter:grayscale(.3);opacity:.55;transform:none}
 .review-feedback{margin-top:15px;padding:14px;border-left:4px solid var(--blue);background:#fffdf7}
 .review-feedback>span{color:var(--blue);font:900 9px/1 var(--font-mono);letter-spacing:1.2px}
-.review-feedback p{margin:8px 0 0!important;color:#39352f;white-space:pre-wrap;font-size:12px;line-height:1.65}
+.review-feedback-content{min-width:0;color:#39352f;font-size:12px;line-height:1.65;overflow-wrap:anywhere}
+.review-feedback-content p{margin:8px 0 0!important}
+.review-feedback-content :is(ul,ol){margin:7px 0 0;padding-left:19px}
+.review-feedback-content ul{list-style:disc}.review-feedback-content ol{list-style:decimal}
+.review-feedback-content li{margin-top:3px;padding-left:2px}.review-feedback-content li p{margin:0!important}
+.review-feedback-content strong{color:var(--ink);font-weight:800}
+.review-feedback-content :is(h1,h2,h3,h4,h5,h6){margin:12px 0 0;color:var(--ink);font-size:12px;font-weight:800;line-height:1.4}
+.review-feedback-content :is(code,pre){font-family:var(--font-mono);font-size:11px}
+.review-feedback-content code{padding:1px 3px;background:#e8edf9}.review-feedback-content pre{max-width:100%;margin:9px 0 0;padding:10px;overflow-x:auto;background:#e8edf9}
+.review-feedback-content pre code{padding:0;background:transparent}
+.review-feedback-content blockquote{margin:9px 0 0;padding-left:10px;border-left:2px solid var(--rule)}
+.review-feedback-content a{color:var(--blue);text-decoration:underline;text-underline-offset:2px}
 .review-error{margin:13px 0 0;padding:11px;border:1px solid #b8503e;background:#ffe0d8;color:#7f271b;font-size:11px;font-weight:700;line-height:1.55}
 .review-boundary{margin:13px 0 0;color:#686158;font-size:10px;line-height:1.55}
 .spin{animation:loading-spin .8s linear infinite}

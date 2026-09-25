@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CodeXml, Lightbulb, LoaderCircle, MessageSquareText, ShieldCheck } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import type { Lesson } from "@/components/learning-views";
 
 type ReviewStatus = {
@@ -108,7 +109,7 @@ export function ReviewConsole({ lesson }: { lesson: Lesson }) {
     </div>
     {status.remaining === 0 && <p className="review-error" role="alert">Today’s review limit is finished. It resets tomorrow in Jakarta time.</p>}
     {error && <p className="review-error" role="alert">{error}</p>}
-    {feedback && <div className="review-feedback" role="status"><span>REVIEW OUTPUT</span><p>{feedback}</p></div>}
+    {feedback && <div className="review-feedback" role="status"><span>REVIEW OUTPUT</span><div className="review-feedback-content"><ReactMarkdown skipHtml>{feedback}</ReactMarkdown></div></div>}
     <p className="review-boundary">Generated reviews can be inaccurate. This console checks text only; it does not run code or verify cloud work.</p>
   </section>;
 }
