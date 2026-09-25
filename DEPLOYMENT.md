@@ -1,75 +1,36 @@
 # Deploying Lockinola
 
-Lockinola uses Cloudflare Workers for the application, D1 for synchronized progress, the existing private password for access, and Ollama for lesson reviews. Local development uses `qwen3.8:27b`; production calls Ollama Cloud.
+The app runs on Cloudflare Workers. D1 stores progress, the Worker password protects the site, and Ollama Cloud handles hosted lesson reviews. Local reviews use the installed `qwen3.8:27b` model.
 
-## 1. Prepare local Ollama
+## Enable Ollama Cloud
 
-Install Ollama, then download the local model:
+1. Create an API key at [Ollama API keys](https://ollama.com/settings/keys). Check [Ollama pricing](https://ollama.com/pricing) for the current free usage allowance before relying on hosted reviews.
+2. In this project directory, store the key directly in the existing Worker:
 
-```powershell
-ollama pull qwen3.8:27b
-```
+   ```powershell
+   npx wrangler secret put OLLAMA_API_KEY --name lockinola
+   ```
 
-Copy `.env.example` to `.env.local`. Keep `LOCKINOLA_HOSTED=false` locally. The review console calls `http://127.0.0.1:11434/api` and does not need an API key.
+   Paste the key only at Wrangler's hidden prompt. Do not put it in the repository or a GitHub Actions secret.
 
-## 2. Create the Cloudflare resources
+3. Open `https://lockinola.skirnola.workers.dev/api/access`. Its `reviewConfigured` field should be `true`. After the updated code is deployed, sign in and try a hint or review from a lesson.
 
-Sign in to Wrangler and create the database:
+The hosted model is `gemma4:31b`. It can be changed with `OLLAMA_CLOUD_MODEL` in the deployment workflow. The browser sends lesson work to the Worker; the Worker sends it to Ollama with the stored key.
 
-```powershell
-npx wrangler login
-npx wrangler d1 create lockinola
-```
+## Connect GitHub Actions
 
-Save the returned database ID. It is used by local deployment and by the GitHub Actions secret named `CLOUDFLARE_D1_DATABASE_ID`.
+The repository has a workflow at `.github/workflows/deploy.yml`. It deploys on pushes to `main` and can also run from the Actions tab. Add these repository secrets under **Settings → Secrets and variables → Actions**:
 
-Create an Ollama API key in your Ollama account. The hosted Worker needs this key because it calls `https://ollama.com/api`; the browser never receives it.
+- `CLOUDFLARE_ACCOUNT_ID`: the account ID shown in Cloudflare.
+- `CLOUDFLARE_API_TOKEN`: the Cloudflare API token you saved under this repository secret name, scoped to this account with **Account → Workers Scripts → Edit** and **Account → D1 → Edit** permissions. The separate **Account → Workers → Admin** option is broader than this deployment needs.
+- `CLOUDFLARE_D1_DATABASE_ID`: the ID of the existing `lockinola` D1 database.
 
-## 3. Configure Worker secrets once
+The workflow installs dependencies, checks types and lint, builds the app, applies D1 migrations, and deploys the Worker. If a check fails, it does not deploy. Keep the site password, session secret, and Ollama key as Worker secrets; the workflow does not need their values.
 
-Build and prepare the deployment configuration first:
+You handle Git commits and pushes. Once the three GitHub secrets are saved, a push to `main` should start the first automatic deployment. Check the run in the repository's **Actions** tab and then open the hosted site.
 
-```powershell
-npm run build
-$env:CLOUDFLARE_D1_DATABASE_ID="your-database-id"
-npm run deploy:prepare
-```
+## Local reviews
 
-Add these secrets to the Worker. Use a unique password of at least 12 characters and a random session secret of at least 32 characters:
+Start Ollama and make sure `ollama list` shows `qwen3.8:27b`. Copy `.env.example` to `.env.local`, then run `npm run dev`. Local Ollama uses `http://127.0.0.1:11434/api` and needs no API key.
 
-```powershell
-npx wrangler secret put LOCKINOLA_ACCESS_PASSWORD --config dist/server/wrangler.json
-npx wrangler secret put LOCKINOLA_ACCESS_SECRET --config dist/server/wrangler.json
-npx wrangler secret put OLLAMA_API_KEY --config dist/server/wrangler.json
-```
-
-Apply the database migration and deploy the first version:
-
-```powershell
-npx wrangler d1 migrations apply DB --remote --config dist/server/wrangler.json
-npx wrangler deploy --config dist/server/wrangler.json
-```
-
-The first browser that signs in uploads its existing local progress when the cloud database is empty. Later sign-ins load the cloud copy. Browser storage remains as a recovery copy.
-
-## 4. Connect GitHub CI/CD
-
-Create a private GitHub repository and push the `main` branch. In the repository's **Settings → Secrets and variables → Actions**, create:
-
-- `CLOUDFLARE_ACCOUNT_ID`
-- `CLOUDFLARE_API_TOKEN`
-- `CLOUDFLARE_D1_DATABASE_ID`
-
-The Cloudflare token needs permission to edit Workers and D1. The application password, session secret, and Ollama key stay in Cloudflare Worker secrets rather than the GitHub workflow.
-
-Every push to `main` then installs dependencies, checks TypeScript, builds the site, applies pending D1 migrations, and deploys the Worker. A failed check prevents deployment. The workflow can also be run manually from GitHub Actions.
-
-## 5. Normal update flow
-
-```powershell
-git add .
-git commit -m "Describe the change"
-git push
-```
-
-GitHub Actions publishes the update automatically. Do not commit `.env.local`, API keys, passwords, database credentials, backups, or downloaded Ollama models.
+Do not commit `.env.local`, API keys, passwords, backups, or downloaded models.

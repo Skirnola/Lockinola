@@ -26,7 +26,7 @@ function currentDate() {
 }
 
 function dailyLimit() {
-  const configured = Number(process.env.LOCKINOLA_REVIEW_DAILY_LIMIT ?? 20);
+  const configured = Number(env.LOCKINOLA_REVIEW_DAILY_LIMIT ?? process.env.LOCKINOLA_REVIEW_DAILY_LIMIT ?? 20);
   return Number.isInteger(configured) && configured >= 1 && configured <= 100 ? configured : 20;
 }
 

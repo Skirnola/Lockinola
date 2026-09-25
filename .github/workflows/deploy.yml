@@ -32,6 +32,9 @@ jobs:
       - name: Check types
         run: npm run typecheck
 
+      - name: Check code style
+        run: npm run lint
+
       - name: Build application
         run: npm run build
 
@@ -41,7 +44,7 @@ jobs:
           CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
           CLOUDFLARE_D1_DATABASE_NAME: lockinola
           CLOUDFLARE_WORKER_NAME: lockinola
-          OLLAMA_CLOUD_MODEL: gemma4
+          OLLAMA_CLOUD_MODEL: gemma4:31b
           LOCKINOLA_REVIEW_DAILY_LIMIT: "20"
 
       - name: Apply database migrations
