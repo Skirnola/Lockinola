@@ -95,7 +95,7 @@ export function ReviewConsole({ lesson }: { lesson: Lesson }) {
       <div><span className="eyebrow">REVIEW CONSOLE</span><h3 id="review-console-title">Inspect your approach</h3></div>
       <span className="review-budget">{statusReady ? `${status.used} / ${status.limit} today` : "Checking limit…"}</span>
     </div>
-    {!status.configured && statusReady && !statusError && <div className="review-setup"><ShieldCheck size={16} /><span><strong>Review endpoint is offline.</strong> Add the model settings from <code>.env.example</code>, then restart the site.</span></div>}
+    {!status.configured && statusReady && !statusError && <div className="review-setup"><ShieldCheck size={16} /><span><strong>Review endpoint is offline.</strong> Set the Ollama API key as a Cloudflare Worker secret to enable hosted reviews.</span></div>}
     {statusError && <p className="review-error" role="alert">Review status could not be loaded. Check the local server and reopen this lesson.</p>}
     <label className="review-answer"><span>Your work</span><textarea value={answer} maxLength={4000} onChange={event => setAnswer(event.target.value)} placeholder={placeholder} /><small>{answer.length} / 4000</small></label>
     <div className="review-actions">

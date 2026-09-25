@@ -14,7 +14,7 @@ function ollamaSettings() {
   return {
     baseUrl: (env.OLLAMA_BASE_URL ?? process.env.OLLAMA_BASE_URL ?? (hosted ? "https://ollama.com/api" : "http://127.0.0.1:11434/api")).replace(/\/$/, ""),
     apiKey: env.OLLAMA_API_KEY ?? process.env.OLLAMA_API_KEY ?? "",
-    model: hosted ? env.OLLAMA_CLOUD_MODEL ?? process.env.OLLAMA_CLOUD_MODEL ?? "gemma4" : env.OLLAMA_LOCAL_MODEL ?? process.env.OLLAMA_LOCAL_MODEL ?? "qwen3.8:27b",
+    model: hosted ? env.OLLAMA_CLOUD_MODEL ?? process.env.OLLAMA_CLOUD_MODEL ?? "gemma4:31b" : env.OLLAMA_LOCAL_MODEL ?? process.env.OLLAMA_LOCAL_MODEL ?? "qwen3.8:27b",
     hosted,
   };
 }

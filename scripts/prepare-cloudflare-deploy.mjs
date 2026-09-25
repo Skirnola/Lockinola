@@ -10,7 +10,7 @@ config.name = process.env.CLOUDFLARE_WORKER_NAME?.trim() || "lockinola";
 config.vars = {
   ...(config.vars ?? {}),
   LOCKINOLA_HOSTED: "true",
-  OLLAMA_CLOUD_MODEL: process.env.OLLAMA_CLOUD_MODEL?.trim() || "gemma4",
+  OLLAMA_CLOUD_MODEL: process.env.OLLAMA_CLOUD_MODEL?.trim() || "gemma4:31b",
   LOCKINOLA_REVIEW_DAILY_LIMIT: process.env.LOCKINOLA_REVIEW_DAILY_LIMIT?.trim() || "20",
 };
 config.d1_databases = [{
