@@ -35,6 +35,7 @@ const cards: Card[] = [
 
 type Mode = "Daily queue" | "Kana" | "Vocabulary";
 type Feedback = { correct: boolean; submitted: string };
+type VoiceStatus = "loading" | "ready" | "missing" | "unsupported";
 
 function normalize(value: string) {
   return value.trim().toLocaleLowerCase().replace(/[.,!?\-_']/g, "").replace(/\s+/g, " ");
@@ -57,7 +58,8 @@ export function JapaneseWorkspace({ attempts, reviews, onRecord }: {
   const [cardId, setCardId] = useState(cards[0].id);
   const [answer, setAnswer] = useState("");
   const [feedback, setFeedback] = useState<Feedback | null>(null);
-  const [audioReady, setAudioReady] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState<VoiceStatus>("loading");
+  const [audioMessage, setAudioMessage] = useState("");
   const [currentTime, setCurrentTime] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
@@ -74,13 +76,34 @@ export function JapaneseWorkspace({ attempts, reviews, onRecord }: {
   const correctToday = todayAttempts.filter(item => item.correct).length;
 
   useEffect(() => {
-    const update = () => {
-      setCurrentTime(Date.now());
-      setAudioReady("speechSynthesis" in window && "SpeechSynthesisUtterance" in window);
-    };
-    const start = window.setTimeout(update, 0);
-    const interval = window.setInterval(update, 60_000);
+    const start = window.setTimeout(() => setCurrentTime(Date.now()), 0);
+    const interval = window.setInterval(() => setCurrentTime(Date.now()), 60_000);
     return () => { window.clearTimeout(start); window.clearInterval(interval); };
+  }, []);
+
+  useEffect(() => {
+    if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) {
+      const timeout = setTimeout(() => setVoiceStatus("unsupported"), 0);
+      return () => clearTimeout(timeout);
+    }
+    const synth = window.speechSynthesis;
+    const updateVoice = () => {
+      const voices = synth.getVoices();
+      if (voices.some(voice => voice.lang.toLowerCase().startsWith("ja"))) {
+        setVoiceStatus("ready");
+        setAudioMessage("");
+      } else if (voices.length) {
+        setVoiceStatus("missing");
+      }
+    };
+    const start = window.setTimeout(updateVoice, 0);
+    const fallback = window.setTimeout(() => setVoiceStatus(status => status === "loading" ? "missing" : status), 1200);
+    synth.addEventListener("voiceschanged", updateVoice);
+    return () => {
+      window.clearTimeout(start);
+      window.clearTimeout(fallback);
+      synth.removeEventListener("voiceschanged", updateVoice);
+    };
   }, []);
 
   useEffect(() => {
@@ -98,14 +121,21 @@ export function JapaneseWorkspace({ attempts, reviews, onRecord }: {
   }, [mode, queueStartId]);
 
   function speak() {
-    if (!audioReady || !card) return;
+    if (voiceStatus !== "ready" || !card) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(card.prompt);
     const voices = window.speechSynthesis.getVoices();
-    utterance.voice = voices.find(voice => voice.lang.toLowerCase().startsWith("ja")) ?? null;
+    const japaneseVoice = voices.find(voice => voice.lang.toLowerCase().startsWith("ja"));
+    if (!japaneseVoice) {
+      setVoiceStatus("missing");
+      return;
+    }
+    utterance.voice = japaneseVoice;
     utterance.lang = "ja-JP";
     utterance.rate = 0.72;
     utterance.pitch = 1;
+    utterance.onerror = event => setAudioMessage(event.error === "audio-busy" ? "Your audio device is busy. Try again." : "Speech could not play. Check your browser's sound output and try again.");
+    setAudioMessage("");
     window.speechSynthesis.speak(utterance);
   }
 
@@ -148,8 +178,8 @@ export function JapaneseWorkspace({ attempts, reviews, onRecord }: {
       <section className="jp-prompt-panel">
         <div className="jp-card-meta"><span>{card.group}</span><span>{schedule ? `Streak ${schedule.streak}` : "New card"}</span></div>
         <div className="jp-character" lang="ja">{card.prompt}</div>
-        <button className="jp-listen" disabled={!audioReady} onClick={speak}><Volume2 size={18} /> {audioReady ? "Play sound" : "Audio unavailable"}</button>
-        <p><Headphones size={14} /> Uses the Japanese voice installed in your browser or device.</p>
+        <button className="jp-listen" disabled={voiceStatus !== "ready"} onClick={speak}><Volume2 size={18} /> {voiceStatus === "ready" ? "Play sound" : voiceStatus === "loading" ? "Checking voice..." : voiceStatus === "missing" ? "Japanese voice missing" : "Audio unavailable"}</button>
+        <p aria-live="polite"><Headphones size={14} /> {audioMessage || (voiceStatus === "missing" ? "Install a Japanese text-to-speech voice on your device, then restart your browser." : voiceStatus === "unsupported" ? "This browser does not support speech playback." : "Uses the Japanese voice installed in your browser or device.")}</p>
       </section>
 
       <section className="jp-answer-panel">
